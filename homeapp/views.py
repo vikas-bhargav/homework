@@ -1,62 +1,89 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
+from random import choice
 from .models import *
 from homeapp.forms import CustumerForm, BookingForm
+import datetime
 
 # Create your views here.
 
+
 def index(request):
     if request.method == 'POST':
+        if 'save' in request.POST:
 
-        customer_no = request.POST.get('phoneNumber')
-        print("customer_no: ", customer_no)
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
-        # customer_full_name = request.POST.get('first_name') + " " + request.POST.get('last_name')
-        customer_obj = Customer.objects.filter(phone_number=customer_no)
-        print("customer_obj: ", len(customer_obj))
-        if len(customer_obj) == 0:
-            customer_obj = Customer(first_name=first_name, last_name=first_name, phone_number=customer_no)
-            customer_obj.save()
-            message = 'Signup successfully!'
-        else:
-            message = 'User alrady exist....!'
+            customer_no = request.POST.get('phone_number')
+            first_name = request.POST.get('first_name')
+            last_name = request.POST.get('last_name')
 
-        form = BookingForm({'first_name': first_name, 'last_name': last_name, 'phoneNumber': customer_no})
-        cities = Cities.objects.all()
-        for c in cities:
-            print(c.city_name, ": ", c.id)
+            # set Customer
+            customer_chk = Customer.objects.filter(phone_number=customer_no).exists()
+            if customer_chk == False:
+                customer_obj = Customer(first_name=first_name, last_name=first_name, phone_number=customer_no)
+                customer_obj.save()
+                message = 'Signup successfully.'
+                form = BookingForm({'first_name': first_name, 'last_name': last_name, 'phone_number': customer_no})
+            else:
+                message = 'User alrady registered.'
 
-        context = {'form': form, 'type': 'booking', 'message': message, 'cities': cities}
+                form = BookingForm({'first_name': first_name, 'last_name': last_name,
+                                    'phone_number': customer_no})
+
+            context = {'form': form, 'type': 'booking', 'message': message}
+            return render(request, 'homeapp/index.html', context)
+
+        if 'book' in request.POST:
+            context = book(request)
+
+            return render(request, 'homeapp/index.html', context)
 
     else:
-        print("final else----------------------")
         form = CustumerForm()
         context = {'form': form, 'type': 'signup'}
 
-    return render(request, 'homeapp/index.html', context)
+        return render(request, 'homeapp/index.html', context)
+
 
 def book(request):
+    customer_no = request.POST.get('phone_number')
+    first_name = request.POST.get('first_name')
+    last_name = request.POST.get('last_name')
+    city = request.POST.get('city')
+    get_date = request.POST.get('date')
+    date = datetime.datetime.strptime(get_date, "%d-%m-%Y")
 
-    if request.method == 'POST':
+    customer_full_name = first_name + " " + last_name
 
-        customer_no = request.POST.get('phoneNumber')
-        first_name = request.POST.get('first_name')
-        last_name = request.POST.get('last_name')
-        customer_full_name = first_name + " " + last_name
+    customer_obj = Customer.objects.get(phone_number=customer_no)
+    city_obj = Cities.objects.get(id=city)
+    cleaner_obj = Cleaner.objects.filter(cities=city_obj)
 
-        if len(customer_obj) == 0:
-            customer_obj = Customer(first_name=first_name, last_name=first_name, phone_number=customer_no)
-            customer_obj.save()
-            message = 'Signup successfully!'
-        else:
-            message = 'User alrady exist....!'
+    book_summry = dict()
+    cleaner_list = list()
+    for cleaner in cleaner_obj:
+        cleaner_chk = Booking.objects.filter(cleaner=cleaner).exists()
+        if cleaner_chk == False:
+            cleaner_list.append(cleaner)
 
-        form = BookingForm({'first_name': first_name, 'last_name': last_name, 'phoneNumber': customer_no})
-        context = {'form': form, 'type': 'booking', 'message': message}
+    if len(cleaner_list) >= 1:
+        cleaner_assign = choice(cleaner_list)
+        book_obj = Booking(customer=customer_obj, cleaner=cleaner_assign, book_date=date, city_id=city)
+        book_obj.save()
+
+        # add bookoing detail in dictionary.
+        book_summry['Customer Name'] = customer_full_name
+        book_summry['City'] = city_obj.city_name
+        book_summry['Booking Date'] = date
+        book_summry['Cleaner'] = cleaner_assign.first_name + " " + cleaner_assign.last_name
+
+        message = 'Book successfully!'
+        context = {'type': 'booked', 'message': message, 'book_summry': book_summry}
+
+        return context
 
     else:
-        form = BookingForm()
-        context = {'form': form, 'type': 'booking '}
+        message = 'We could not fulfill your request at this time.'
+        form = BookingForm({'first_name': first_name, 'last_name': last_name, 'phone_umber': customer_no})
+        context = {'form': form, 'type': 'booking', 'message': message}
 
-    return render(request, 'homeapp/index.html', context)
+        return context

@@ -1,26 +1,11 @@
 from django.db import models
-import datetime
+from multiselectfield import MultiSelectField
+
 # Create your models here.
 
 
-class Customer(models.Model):
-    first_name = models.CharField(max_length=200)
-    last_name = models.CharField(max_length=200)
-    phone_number = models.IntegerField()
-
-    def __str__(self):
-        return self.first_name
-
-
-
 class Cities(models.Model):
-    CITIES_CHOICES = (
-        ('mumbai', 'Mumbai'),
-        ('ahmedabad', 'Ahmedabad'),
-        ('indore', 'Indore'),
-        ('pune', 'Pune'),
-    )
-    city_name = models.CharField(max_length=200, choices=CITIES_CHOICES)
+    city_name = models.CharField(max_length=200)
 
     def __str__(self):
         return self.city_name
@@ -30,16 +15,26 @@ class Cleaner(models.Model):
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
     quality_score = models.FloatField(5)
-    city = models.ForeignKey(Cities)
+    cities = models.ManyToManyField(Cities, MultiSelectField(Cities), null=True)
+
     def __str__(self):
-        return self.first_name
+        return str(self.first_name) + " " + str(self .last_name)
 
 
-class Booking1(models.Model):
+class Customer(models.Model):
+    first_name = models.CharField(max_length=200)
+    last_name = models.CharField(max_length=200)
+    phone_number = models.CharField(max_length=200)
+
+    def __str__(self):
+        return str(self.first_name) + " " + str(self.last_name)
+
+
+class Booking(models.Model):
     customer = models.ForeignKey(Customer)
     cleaner = models.ForeignKey(Cleaner)
-    date = models.DateTimeField()
-
+    city_id = models.IntegerField(null=False)
+    book_date = models.DateTimeField()
 
     def __str__(self):
-        return self.customer
+        return str(self.customer.first_name) + " " + str(self.customer.last_name)
